@@ -50,5 +50,34 @@ We proceed in the following steps:
         &= \log \left( \frac{1}{I} \sum\limits_{i=1}^{I} N_i \exp \left( \log (\vec{\beta}_i \cdot \vec{\mu}_j) +\alpha_i + \gamma_j + \varepsilon_{i, j} \right) \right)\\
         &= \gamma_j + \log \left( \frac{1}{I} \sum\limits_{i=1}^{I} N_i (\vec{\beta}_i \cdot \vec{\mu}_j)\exp \left( \alpha_i + \varepsilon_{i, j} \right) \right)\\
         &= \gamma_j + \log \left( \frac{1}{I} \sum\limits_{i=1}^{I} \left( \sum\limits_{k=1}^{K} \beta_{i, k}\cdot \mu_{k, j} \right)N_i \exp \left( \alpha_i + \varepsilon_{i, j} \right) \right)\\
-    \end{align*}<++>
+        &= \gamma_j + \log \left( \sum\limits_{k=1}^{K} \mu_{k, j} \sum\limits_{i=1}^{I} \frac{N_i}{I} \beta_{i, k}\exp \left( \alpha_i + \varepsilon_{i, j} \right)  \right)\\
+        &= \gamma_j + \log \left( \ol{N} \sum\limits_{k=1}^{K} \mu_{k, j} \left( \frac{1}{I}\sum\limits_{i=1}^{I} \frac{N_i}{\ol{N}} \beta_{i, k}\exp \left( \alpha_i + \varepsilon_{i, j} \right) \right)  \right)\\
+        &= \gamma_j + \log \left( \ol{N} \sum\limits_{k=1}^{K} \mu_{k, j} B_{k, j}  \right),
+    \end{align*}
+    where
+    \begin{align*}
+        \ol{N}  \defeq \frac{1}{I} \sum\limits_{i=1}^{I} N_i \quad \text{and} \quad
+        B_{k, j} \defeq \frac{1}{I} \sum\limits_{i=1}^{I} \frac{N_i}{\ol{N}} \beta_{i, k} \exp(\alpha_i+\varepsilon_{i, j}).
+    \end{align*}
+    $\mathsf{B}_{k, j}$ has some desirable properties. In particular, we have
+    \begin{align*}
+        \EE_{\hat{p}_{\mathsf{B}_{k, j}}}\left[B_{k, j}\right]
+        &= 
+        \EE_{\hat{p}_{\mathsf{N}, \varepsilon_{j}, \beta_k, \alpha}}\left[ \frac{N}{\EE_i[N]}\beta_k \exp(\alpha+\varepsilon_j) \right]
+        \\
+        &= \EE_{\hat{p}_{\varepsilon_{j}, \beta_k, \alpha}}\left[ \beta_k \exp(\alpha+\varepsilon_j) \right]
+        \\
+        &= \ol{\beta}_k\EE_{\hat{p}_{\varepsilon_{j}, \alpha}}\left[ \exp(\alpha+\varepsilon_j) \right]
+        \\
+        &\defeq \ol{\beta}_k\beta_0,
+    \end{align*}
+    and as $I\to \infty$, $\Var[B_{k, j}] \to 0$.\todo{Why is this the case? Central Limit Theorem with weak dependence or something?}  Therefore, as $I \to \infty$ we get $B_{k, j} \approx \ol{\beta}_k \beta_0$ so
+    \[
+    \log \EE_{\mathsf{M}_j | \vec{\lambda}_j}\left[ M_j \midd  \lambda_{1, j}, \ldots, \lambda_{I, j} \right]
+    \approx \gamma_j + \log \beta_0 + \log \left( \ol{N} \sum\limits_{k=1}^{K} \mu_{k, j}\ol{\beta}_k \right).
+    \]
+    Now we can estimate the platform effects $\gamma_j$ by plugging in the MLE for $\beta_0$, $\ol{\vec{b}}$, and $\sigma_\gamma$.\todo{How do we go from the above equation to the MLE for the relevant parameters? Is it part of the EM algorithm?}
+    \ii \vocab{Robust Cell Type Decomposition}.
+
+    With $\hat{\mu}_{k, j}$ and $\hat{\gamma}_j$ determined, we then find the MLE estimate for $\alpha_i, \vec{\beta}_i$ and $\sigma_\varepsilon$ in our original model.
 \end{enumerate}<++>
