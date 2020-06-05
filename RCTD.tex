@@ -34,7 +34,7 @@ We proceed in the following steps:
 
     Using the estimated expression profiles $\hat{\vec{\mu}}_j$, we filter out genes that are not highly variable across cell types.
 
-    We can do this by taking the expression profiles $\hat{\vec{\mu}}_j$ and selecting genes with a minimum average expression and sufficiently high variance.\todo{does this discard genes that are, say, only expressed in one cell type? (average might be low, but gene could be good marker)}
+    We can do this by taking the expression profiles $\hat{\vec{\mu}}_j$ and selecting genes with a minimum average expression and sufficiently high variance.
     \ii
     \vocab{Platform Effect Normalization}.
 
@@ -71,13 +71,24 @@ We proceed in the following steps:
         \\
         &\defeq \ol{\beta}_k\beta_0,
     \end{align*}
-    and as $I\to \infty$, $\Var[B_{k, j}] \to 0$.\todo{Why is this the case? Central Limit Theorem with weak dependence or something?}  Therefore, as $I \to \infty$ we get $B_{k, j} \approx \ol{\beta}_k \beta_0$ so
+    and as $I\to \infty$, $\Var[B_{k, j}] \to 0$ (by Chebyshev's Inequality). Therefore, as $I \to \infty$ we get $B_{k, j} \approx \ol{\beta}_k \beta_0$ so
     \[
     \log \EE_{\mathsf{M}_j | \vec{\lambda}_j}\left[ M_j \midd  \lambda_{1, j}, \ldots, \lambda_{I, j} \right]
     \approx \gamma_j + \log \beta_0 + \log \left( \ol{N} \sum\limits_{k=1}^{K} \mu_{k, j}\ol{\beta}_k \right).
     \]
-    Now we can estimate the platform effects $\gamma_j$ by plugging in the MLE for $\beta_0$, $\ol{\vec{b}}$, and $\sigma_\gamma$.\todo{How do we go from the above equation to the MLE for the relevant parameters? Is it part of the EM algorithm?}
+    Now we can estimate the platform effects $\gamma_j$. Let $W_k \defeq \ol{\beta}_k \beta_0$. The idea is that we can approximate a model for $\mathsf{M}$ by
+    \begin{align*}
+        \mathsf{M}_j \mid \gamma_j             
+        &\sim \text{Poisson}\left( I\ol{N}e^{\gamma_j}\sum\limits_{k=1}^{K}\mu_{k, j}W_k \right)\\   
+        \gamma_j &\sim \mN (0, \sigma_\gamma^2).    
+    \end{align*}
+    We can then find the MLE estimates of $W$ and $\sigma_\gamma$ according to this model and hence obtain $\hat{\gamma}$. This is okay because conditioning on $W_k$, the distribution of $\gamma_j$ behaves like a delta function so we can approximate $\gamma_j$ by the MLE of $\gamma$.
     \ii \vocab{Robust Cell Type Decomposition}.
 
     With $\hat{\mu}_{k, j}$ and $\hat{\gamma}_j$ determined, we then find the MLE estimate for $\alpha_i, \vec{\beta}_i$ and $\sigma_\varepsilon$ in our original model.
-\end{enumerate}<++>
+\end{enumerate}
+We are not yet done after estimating each $\hat{\beta}_{i, k}$. We want to incorporate our prior information that each pixel $i$ is a mixture of a small number of cell types. Hence, we consider models that only consider one or two cell types, and favor ``singlet'' models $\mM$ by minimizing the Akaike Information Criterion
+\[
+\text{AIC}(\mM) = \mL(\mM) + V\cdot p(\mM),
+\]
+where $\mL$ is the log likelihood, $V$ is a penalty parameter and $p(\cdot)$ is the number of parameters of the model.
