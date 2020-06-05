@@ -223,3 +223,8 @@ We then proceed to do a variant of the EM algorithm as follows:
     Accordingly, we update $\alpha$ and $\beta$ to maximize the ELBO.
     \ii We repeat the E-step and M-step until convergence.
 \end{enumerate}
+One issue is that sometimes rare words are given probability zero in the multinomial parameters $\beta$. We thus want to ``smooth'' these parameters by assigning all relevant words a nonzero probability. We can try to amend this problem by placing a Dirichlet prior on the multinomial parameter $\beta$. This will give us an intractable posterior on $\beta$, so we will need to extend our use of approximation techniques such as VI, for instance by considering the separable density
+\[
+q(\beta, \theta, \mathbf{z}\mid \lambda, \gamma, \varphi) = \prod\limits_{k=1}^{K} \text{Dir}(\beta_k\mid \lambda_k) \prod\limits_{d=1}^{D} q_d(\theta_d, \mathbf{z}_d \mid \gamma_d, \varphi_d).
+\]
+Here $q_d$ is the variational distribution defined for LDA above. This gives us the original update equations as well as a new update for $\lambda$.
