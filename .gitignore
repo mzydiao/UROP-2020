@@ -4,4 +4,12 @@
 *.log
 *.out
 *.pre
+*.asy
 *.tex.latexmain
+/src/test*
+.DS_Store
+dataset-generation.tex
+ideas.pdf
+ideas.tex
+src/poisson.stan
+notes-*.pdf
