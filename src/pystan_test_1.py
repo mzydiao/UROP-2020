@@ -42,12 +42,14 @@ c_subset = c_subset.div(c_subset.sum(axis=1), axis=0)
 def gen_data(I = 5000, P = 1000, J = 899, C = 3000, mag = 0.00007, beta = c_subset.to_numpy()):
     alpha = mag * np.ones(C)
     rng = np.random.default_rng()
-    theta = rng.dirichlet(alpha)
+    theta = rng.dirichlet(alpha,P)
     lam = I * np.reshape(theta,(-1,C)).dot(beta)
     N = rng.poisson(lam, size=(P,J))
-    return N
+    return theta, lam, N
 
-fake_data = gen_data(P=1000)
+pixels = 500
+
+theta, lam, fake_data = gen_data(P=pixels)
 
 constant_I_model = """
 data {    
@@ -57,26 +59,35 @@ data {
     int<lower=0> types; //number of cell types   
 }    
 parameters {
-    simplex[types] theta; //theta is cell type proportion    
+    simplex[types] theta[P]; //theta is cell type proportion    
     simplex[J] beta[types]; //beta is matrix of gene frequencies    
 }    
 model {    
     matrix[types, J] matrixBeta;
     for (type in 1:types)
-        matrixBeta[type] = beta[type]'; 
+        matrixBeta[type] = beta[type]';
     for (p in 1:P)    
-        N[p] ~ poisson(5000 * theta' * matrixBeta); //consider truncating pdf because don't want N to be negative
+        N[p] ~ poisson(5000 * theta[p]' * matrixBeta); //consider truncating pdf because don't want N to be negative
 }
 """
 
 constant_sm = pystan.StanModel(model_code=constant_I_model)
 
 parameter_samples = constant_sm.sampling(data = {
-    "P": 1000,
+    "P": pixels,
     "J": 899,
     "N": fake_data,
     "types": 3
-}, verbose=True, iter=1000)
+}, verbose=True, iter=500)
+
+with open('1-theta.pickle', 'wb') as handle:
+    pickle.dump(theta, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    
+with open('1-lam.pickle', 'wb') as handle:
+    pickle.dump(lam, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+with open('1-fake_data.pickle', 'wb') as handle:
+    pickle.dump(fake_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 with open('constant_sm.pickle', 'wb') as handle:
     pickle.dump(constant_sm, handle, protocol=pickle.HIGHEST_PROTOCOL)
