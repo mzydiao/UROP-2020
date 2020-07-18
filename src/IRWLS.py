@@ -17,7 +17,7 @@ def get_der_fast(S, B, prediction, X_vals, Q_mat):
 
 def get_d1_d2(B, prediction, X_vals, Q_mat):
     #returns tuple of d1_vec, d2_vec
-    bead, epsilon, X_max, delta = B, 1e-4, max(X_vals), 1e-5#are we sure we want to modify B? maybe B.copy
+    bead, epsilon, X_max, delta = B.copy(), 1e-4, max(X_vals), 1e-5#are we sure we want to modify B? maybe B.copy
     K_val = 100 #?
     x = np.minimum(np.maximum(epsilon, prediction), X_max - epsilon)
     Q_cur = calc_Q_all(x, bead, X_vals, Q_mat)
@@ -62,7 +62,7 @@ def solve_WLS(S, B, initial_sol, nUMI, X_vals, Q_mat,
     solution = np.maximum(initial_sol, 0)
     prediction = np.abs(S @ solution)
     threshold = max(1e-4, max(nUMI) * epsilon)
-    prediction = np.minimum(prediction, threshold)
+    prediction = np.maximum(prediction, threshold)
     derivatives = get_der_fast(S, B, prediction, X_vals, Q_mat)
     d_vec = -derivatives["grad"]
     D_mat = psd(derivatives["hess"]) #positive semidefinite part
