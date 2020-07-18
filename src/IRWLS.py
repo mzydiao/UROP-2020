@@ -1,6 +1,6 @@
 import quadprog
 
-def get_der_fast(S, B, prediction, X_vals, Q_mat):
+def get_der_fast(S, B, prediction, X_vals, Q_mat, S_mat):
     d1_vec, d2_vec = get_d1_d2(B, prediction, X_vals, Q_mat)
     S_rows, S_cols = S.shape
     grad = -d1_vec @ S
@@ -55,7 +55,7 @@ def psd(H):
     return eig_vectors @ np.diag(np.maximum(eig_values, epsilon)) @ eig_vectors.T
 
 
-def solve_WLS(S, B, initial_sol, nUMI, X_vals, Q_mat,
+def solve_WLS(S, B, initial_sol, nUMI, X_vals, Q_mat, S_mat,
         constrain = False):
     S_rows, S_cols = S.shape
     epsilon = 1e-7
@@ -63,7 +63,7 @@ def solve_WLS(S, B, initial_sol, nUMI, X_vals, Q_mat,
     prediction = np.abs(S @ solution)
     threshold = max(1e-4, max(nUMI) * epsilon)
     prediction = np.maximum(prediction, threshold)
-    derivatives = get_der_fast(S, B, prediction, X_vals, Q_mat)
+    derivatives = get_der_fast(S, B, prediction, X_vals, Q_mat, S_mat)
     d_vec = -derivatives["grad"]
     D_mat = psd(derivatives["hess"]) #positive semidefinite part
     norm_factor = np.linalg.norm(D_mat)
@@ -100,7 +100,7 @@ def solve_IRWLS(S, B, nUMI, X_vals, Q_mat,
     iterations = 0 #now use dampened WLS, iterate weights until convergence
     change = 1
     while change > MIN_CHANGE and iterations < n_iter:
-        new_solution = solve_WLS(S, B, solution, nUMI, X_vals, Q_mat,
+        new_solution = solve_WLS(S, B, solution, nUMI, X_vals, Q_mat, S_mat,
                 constrain = constrain)
         change = np.linalg.norm(new_solution - solution)
         if verbose:
