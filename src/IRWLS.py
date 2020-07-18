@@ -21,7 +21,7 @@ def get_d1_d2(B, prediction, X_vals, Q_mat):
     K_val = 100 #?
     x = np.minimum(np.maximum(epsilon, prediction), X_max - epsilon)
     Q_cur = calc_Q_all(x, bead, X_vals, Q_mat)
-    bead = np.maximum(K_val, bead)
+    bead = np.minimum(K_val, bead)
     Q_k, Q_k1, Q_k2 = Q_cur
     Q_d1 = 1/x * \
             (bead * (Q_k - Q_k1) - Q_k1)
