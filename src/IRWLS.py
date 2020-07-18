@@ -9,7 +9,7 @@ def get_der_fast(S, B, prediction, X_vals, Q_mat, S_mat):
     counter = 0
     for i in range(S_cols):
         l = S_cols - i
-        hess[i, i:S_cols] = hess_c[counter: counter+l]
+        hess[i, i:] = hess_c[counter: counter+l]
         hess[i, i] /= 2
         counter += l
     hess += hess.T
@@ -37,12 +37,12 @@ def calc_Q_all(x, bead, X_vals, Q_mat):
     l = np.floor((x / delta) ** (2/3))
     l = np.minimum(l, 900) + np.floor(np.maximum(l - 900, 0) / 30)
     l = l.astype(int)
-    prop = (X_vals[l+1] - x) / (X_vals[l+1] - X_vals[l])
+    prop = (X_vals[l] - x) / (X_vals[l] - X_vals[l-1])
     output = []
     bead = bead.astype(int)#do this earlier?
-    for i in range(1,4):
-        v = Q_mat[bead + i, l + 1]#axis?
-        k = Q_mat[bead+i, l] - v
+    for i in range(3):
+        v = Q_mat[bead+i, l]#axis?
+        k = Q_mat[bead+i, l-1] - v
         r = k * prop + v
         output.append(r)
     return output
@@ -66,7 +66,7 @@ def solve_WLS(S, B, initial_sol, nUMI, X_vals, Q_mat, S_mat,
     derivatives = get_der_fast(S, B, prediction, X_vals, Q_mat, S_mat)
     d_vec = -derivatives["grad"]
     D_mat = psd(derivatives["hess"]) #positive semidefinite part
-    norm_factor = np.linalg.norm(D_mat)
+    norm_factor = np.linalg.norm(D_mat, ord=2)
     D_mat /= norm_factor
     d_vec /= norm_factor
     D_mat += epsilon * np.identity(len(d_vec))
@@ -102,7 +102,7 @@ def solve_IRWLS(S, B, nUMI, X_vals, Q_mat,
     while change > MIN_CHANGE and iterations < n_iter:
         new_solution = solve_WLS(S, B, solution, nUMI, X_vals, Q_mat, S_mat,
                 constrain = constrain)
-        change = np.linalg.norm(new_solution - solution)
+        change = np.linalg.norm(new_solution - solution,ord=1)
         if verbose:
             print("Change:",change)
             print(solution)
