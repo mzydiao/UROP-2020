@@ -62,7 +62,7 @@ def solve_WLS(S, B, initial_sol, nUMI, X_vals, Q_mat,
     solution = np.maximum(initial_sol, 0)
     prediction = np.abs(S @ solution)
     threshold = max(1e-4, max(nUMI) * epsilon)
-    prediction = np.maximum(prediction, threshold)
+    prediction = np.minimum(prediction, threshold)
     derivatives = get_der_fast(S, B, prediction, X_vals, Q_mat)
     d_vec = -derivatives["grad"]
     D_mat = psd(derivatives["hess"]) #positive semidefinite part
@@ -74,7 +74,7 @@ def solve_WLS(S, B, initial_sol, nUMI, X_vals, Q_mat,
     bzero = -solution
     alpha = 0.3
     if constrain:
-        A_const = np.append(np.ones((S_cols, 1)), A, axis=1)
+        A_const = np.append(np.ones((S_cols, 1)), A, axis=1)#are you sure axis is right?
         b_const = np.append(1 - sum(solution), bzero)
         solution += alpha * quadprog.solve_qp(D_mat, d_vec, C = A_const, b =b_const, meq=1)[0]#not sure if this is how it works
     else:
