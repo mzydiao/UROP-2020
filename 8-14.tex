@@ -1,0 +1,444 @@
+\documentclass{beamer}
+\usepackage{diaobeamer}
+
+\usepackage[utf8]{inputenc}
+\usepackage{pgfplots}
+\usepgfplotslibrary{groupplots,dateplot}
+\usetikzlibrary{patterns,shapes.arrows}
+\pgfplotsset{compat=newest}
+
+\usetikzlibrary{external}
+\tikzexternalize[prefix=figs/]
+
+\usepackage{import}
+\newcommand{\importfig}[1]{\import{./src/figs/}{#1.tex}}
+
+\graphicspath{{./src/figs/}}
+
+\usepackage{minted}
+
+\title{Unsupervised Topic Modelling of Cell Type Mixtures in Spatial Transcriptomics Data}
+\date{Rafalab Meeting 8/14}
+\author{Michael Diao}
+%\institute{Rafalab Meeting}
+%\institute{Broad Institute of MIT and Harvard}
+
+\begin{document}
+
+\maketitle
+
+\begin{frame}
+    \frametitle{Thanks!}
+    \begin{itemize}
+        \ii
+        Dylan
+        \ii
+        Professor Chen (Broad Institute)
+        \ii
+        Professor Irizarry
+        \ii
+        You guys!
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Why?}
+
+    \begin{itemize}
+        \ii RCTD provides a
+        \alert{supervised} approach to estimating 
+        cell type weights.
+        \ii Want a way to estimate cell type weights \textit{without} reference data.
+    \end{itemize}
+\end{frame}
+
+\section{Approaches, Progress \& Setbacks}
+
+\begin{frame}
+    \frametitle{Approach 0: Latent Dirichlet Allocation}
+    \begin{figure}[!htbp]
+        \centering
+        \includegraphics[width=\textwidth]{8-14-1.pdf}
+        \caption{Hierarchical model for LDA.}
+    \end{figure}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Approach 0: Attempting to use out-of-box LDA}
+\begin{minted}[fontsize=\footnotesize, breaklines=true, frame=single]{py}
+from sklearn.decomposition import LatentDirichletAllocation as LDA
+lda = LDA(n_components=3, max_iter=100, random_state=0)
+lda.fit(doublets)
+print(lda.transform(doublets))
+\end{minted}
+    \begin{table}
+        \centering
+            \footnotesize
+        \begin{tabular}{c|c|c}
+            \textbf{Purkinje?} & \textbf{Astrocytes?} & \textbf{Granule?}\\
+            \hline
+            0.1745784 &0.17457841&0.65084319
+            \\ 0.17622564& 0.17622564&0.64754872
+            \\ 0.17392182&0.17392182&0.65215635
+            \\ \vdots & \vdots & \vdots
+            \\ 0.17503798&0.17503798&0.64992403
+            \\ 0.17510081&0.17510081&0.64979839
+            \\ 0.17310268&0.17310268&0.65379464
+        \end{tabular}
+        \caption{What's going on?}
+    \end{table}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Approach 0: Pros/Cons}
+    \begin{itemize}
+        \ii \textbf{Pros}:
+        \begin{itemize}
+            \ii
+            Lots of literature on LDA---very popular topic model
+            \ii Fast due to variational approximation
+        \end{itemize}
+        \ii \textbf{Cons}:
+        \begin{itemize}
+            \ii
+            Hard to interpret/debug
+            \ii Model not necessarily suited for our particular problem
+            \ii Doesn't incorporate sparsity information, gene overdispersion
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Approach 1: Bayesian MCMC with \textit{PyStan}}
+\begin{minted}[fontsize=\footnotesize, breaklines=true]{py}
+import pystan
+poisson_code = """
+data {    
+    int<lower=0> N[P,J];
+    ...
+}    
+parameters {
+    simplex[types] theta[P];
+    simplex[J] beta[types];
+}    
+model {    
+    for (p in 1:P)    
+        N[p] ~ poisson(I[p] * theta[p]' * beta[types]);
+}
+"""
+poisson_model = pystan.StanModel(model_code=poisson_code)
+\end{minted}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Approach 1: Bayesian MCMC with \textit{PyStan}}
+    \begin{figure}[!htbp]
+        \centering
+        \includegraphics[width=\textwidth]{mcmc-3.pdf}
+        \caption{Testing unsupervised PyStan MCMC approach with Poisson model.}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Approach 1: Bayesian MCMC with \textit{PyStan}}
+    \begin{figure}[!htbp]
+        \centering
+        \includegraphics[width=\textwidth]{mcmc-big.pdf}
+        \caption{Testing MCMC on many cells.}
+    \end{figure}
+\end{frame}
+
+
+\begin{frame}
+    \frametitle{An Issue}
+    \begin{table}
+        \centering
+        \begin{tabular}{c | c | c}
+            \textbf{Purkinje} & \textbf{Astrocytes} & \textbf{Granule}\\\hline
+            0.233 & 0.674 & 0.092\\
+            0.063 & \alert{0.098} & \alert{0.838}\\
+            0.197 & 0.085 & 0.717\\
+            0.071 & 0.412 & 0.515\\
+            0.026 & 0.041 & 0.932\\
+            0.022 & 0.957 & 0.020\\
+            0.051 & \alert{0.120} & \alert{0.828}\\
+            0.021 & \alert{0.173} & \alert{0.804}\\
+            0.043 & 0.414 & 0.541\\
+            0.059 & \alert{0.142} & \alert{0.797}\\
+        \end{tabular}
+        \caption{``Astrocyte pollution.''}
+    \end{table}
+\end{frame}
+
+\begin{frame}
+    \frametitle{An Issue}
+    \begin{figure}[!htbp]
+        \centering
+        \includegraphics[width=\textwidth]{mcmc-3-many-issue.pdf}
+        %\importfig{mcmc-3-many-issue}
+        \caption{``Astrocyte pollution.''}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Attempted Remedy: Introducing a Prior}
+    \begin{block}{Dirichlet distribution}
+        \[
+        \PP(w \,|\, \alpha) \propto \prod\limits_{i=1}^{K} w_i^{\alpha_i-1}
+        \]
+    \end{block}
+
+    \begin{figure}[!htbp]
+        \onslide<2>
+        \centering
+        \includegraphics[height=0.6\textheight]{alpha-02.pdf}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Attempted Remedy: Introducing a Prior}
+    \begin{block}{Dirichlet distribution}
+        \[
+        \PP(w \,|\, \alpha) \propto \prod\limits_{i=1}^{K} w_i^{\alpha_i-1}
+        \]
+    \end{block}
+
+    \begin{figure}[!htbp]
+        \centering
+        \includegraphics[height=0.6\textheight]{alpha-2.pdf}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Approach 1: Pros/Cons}
+    \begin{itemize}
+        \ii \textbf{Pros}:
+        \begin{itemize}
+            \ii Very accurate results for simulated data
+            \ii Results for real data look good
+            \ii Initialization doesn't really seem to matter
+        \end{itemize}
+        \ii \textbf{Cons}:
+        \begin{itemize}
+            \ii Fully Bayesian MCMC is \alert{extremely slow}
+            \ii Took a \alert{week} for results on 7 cell types!
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Approach 2: Variational Bayes (ADVI) with \textit{PyStan}}
+    \begin{figure}[!htbp]
+        \centering
+        \includegraphics[width=\textwidth]{vb-init-3.pdf}
+        %\importfig{vb-init-3}
+        \caption{Testing Variational Bayes.}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Approach 2: Variational Bayes (ADVI) with \textit{PyStan}}
+    \begin{figure}[!htbp]
+        \centering
+        \includegraphics[width=\textwidth]{vb-rand-3.pdf}
+        \caption{Bad initialization!}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Approach 2: Variational Bayes (ADVI) with \textit{PyStan}}
+    \begin{figure}[!htbp]
+        \centering
+        \includegraphics[width=\textwidth]{vb-init-3-many.pdf}
+        %\scalebox{0.45}{\importfig{vb-init-3-many-2}}
+        \caption{More astrocyte pollution!}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Approach 2: Variational Bayes (ADVI) with \textit{PyStan}}
+    \begin{figure}[!htbp]
+        \centering
+        \includegraphics[width=\textwidth]{vb-rand-3-mix.pdf}
+        %\importfig{vb-rand-3-mix}
+        \caption{No longer just ``pollution''\ldots}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Approach 2: Pros/Cons}
+    \begin{itemize}
+        \ii
+        \textbf{Pros}
+        \begin{itemize}
+            \ii Much \alert{faster} than MCMC
+            \ii At least 10$\times$ speedup on 6311 pixel, 3 type dataset
+        \end{itemize}
+        \ii
+        \textbf{Cons}
+        \begin{itemize}
+            \ii Strong independence assumptions
+            \ii Prone to getting suck at local minima
+            \ii Cell type mixing, again---but worse
+            \ii Hard to debug
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Where's the prior?}
+\begin{minted}[fontsize=\footnotesize, breaklines=true, frame=single]{py}
+import pystan
+dir_prior_code = """..."""
+dir_prior_model = pystan.StanModel(model_code=dir_prior_code)
+vb_samples = dir_prior_model.vb(data = {...})
+\end{minted}
+    \begin{alertblock}{{RuntimeError}}
+        \footnotesize
+        \texttt{stan::variational::normal\_meanfield::calc\_grad: The number of dropped evaluations has reached its maximum amount (10). Your model may be either severely ill-conditioned or misspecified.}
+    \end{alertblock}
+\end{frame}
+
+\section{Back to square one}
+
+\begin{frame}
+    \frametitle{Approach 3: Maximum Likelihood}
+    \begin{figure}[!htbp]
+        \centering
+        \includegraphics[width=\textwidth]{opt-3.pdf}
+        %\importfig{opt-3}
+        \caption{Testing unsupervised MLE approach: Poisson lognormal model, no sparsity prior}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \begin{figure}[!htbp]
+        \centering
+        %\scalebox{0.45}{\importfig{irwls-constrain-3}}
+        %\includegraphics[width=\textwidth]{irwls-constrain-3.pdf}
+        %\importfig{irwls-unconstrained-3}
+        \includegraphics[width=\textwidth]{irwls-unconstrained-3.pdf}
+        \caption{Testing IRWLS: retrieving cell type weights for 3 cells in fake data given true gene expression matrix.}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \begin{figure}[!htbp]
+        \centering
+        \includegraphics[width=\textwidth]{irwls-gt-19.pdf}
+        \caption{More testing: 19 cell types.}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Approach 3: MLE $\to$ MAP Estimate}
+    \begin{figure}[!htbp]
+        \centering
+        %\scalebox{0.45}{\importfig{irwls-constrain-3}}
+        %\includegraphics[width=\textwidth]{irwls-constrain-3.pdf}
+        %\importfig{irwls-unconstrained-3}
+        \includegraphics[width=\textwidth]{irwls-unconstrained-3.pdf}
+        \caption{No prior.}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Approach 3: MLE $\to$ MAP Estimate}
+    \begin{figure}[!htbp]
+        \centering
+        %\scalebox{0.45}{\importfig{irwls-constrain-3}}
+        %\includegraphics[width=\textwidth]{irwls-constrain-3.pdf}
+        %\importfig{irwls-unconstrained-prior-3-a}
+        \includegraphics[width=\textwidth]{irwls-unconstrained-prior-3-a.pdf}
+        \caption{With Dirichlet prior, $\alpha = \left\langle 0.1, 0.1, 0.1 \right\rangle$.}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Approach 3: MLE $\to$ MAP Estimate}
+    \begin{figure}[!htbp]
+        \centering
+        \includegraphics[width=\textwidth]{irwls-altmax-uc.pdf}
+        %\importfig{irwls-altmax-uc}
+        \caption{IRWLS altmax algorithm with snRNA init, no prior.}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Approach 3: MLE $\to$ MAP Estimate}
+    \begin{figure}[!htbp]
+        \centering
+        \includegraphics[width=\textwidth]{irwls-prior-altmax-uc.pdf}
+        %\importfig{irwls-prior-altmax-uc}
+        \caption{With Dirichlet prior, $\alpha = \left\langle 0.1, 0.1, 0.1 \right\rangle$.}
+    \end{figure}
+\end{frame}
+
+%\begin{frame}
+%    \frametitle{Gradient and Hessian}
+%    Suppose that we normalize $\mathbf{w}$, so that the new weight vector corresponds to $\left\langle \frac{w_1}{s}, \ldots, \frac{w_K}{s} \right\rangle$, where $s = \sum\limits w_i$. Then
+%    \begin{align*}
+%        \PP(w \,|\, \alpha) &\propto \prod\limits_{i=1}^{K} \left( \frac{w_i}{s} \right)^{\alpha_i-1}
+%        \\
+%        \nabla \log \PP\left( w \midd \alpha \right) &= \nabla \sum\limits_{i=1}^{K} (\alpha_i-1) (\log w_i - \log s)
+%        \\
+%        &=
+%        \begin{bmatrix}
+%            \frac{\alpha_i-1}{w_i} - \sum\limits_{j=1}^{K} \frac{\alpha_j-1}{s}
+%        \end{bmatrix}_{i=1}^K
+%    \end{align*}
+%\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Approach 3: Pros/Cons}
+    \begin{itemize}
+        \ii
+        \textbf{Pros}
+        \begin{itemize}
+            \ii Implemented on top of RCTD's preexisting functions
+            \ii Simpler to debug
+            \ii Very fast
+            \ii We can actually incorporate the prior!
+        \end{itemize}
+        \ii \textbf{Cons}
+        \begin{itemize}
+
+            \ii Right now, need to initialize with cross-reference---not unsupervised!
+            \ii
+            Initialization is hard\ldots
+        \end{itemize}
+    \end{itemize}
+\begin{minted}[fontsize=\footnotesize, breaklines=true, frame=single]{py}
+solution += alpha * quadprog.solve_qp(...)
+\end{minted}
+
+            \begin{alertblock}{ValueError}
+                \footnotesize
+                \texttt{Buffer dtype mismatch, expected 'double' but got 'complex double'}
+            \end{alertblock}
+\end{frame}
+
+
+\section{What now?}
+
+\begin{frame}[fragile]
+    \begin{itemize}
+        \ii How to 
+        \alert{increase sparsity}?
+        \ii Multithreading in Python?
+
+\begin{minted}[fontsize=\footnotesize, breaklines=true, frame=single]{py}
+weights = [compute_weights(x) for x in something]
+\end{minted}
+        \ii
+        Can we find a reasonable initialization without using a reference?
+        \ii
+        Other approaches?
+        \ii
+        Reach out to me at \texttt{diao@mit.edu}!
+    \end{itemize}
+\end{frame}
+
+\section{Thanks for listening!}
+
+\end{document}
